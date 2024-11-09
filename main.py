@@ -5,9 +5,18 @@ import sounddevice as sd
 import wave
 import numpy as np
 
-import tts
+import util
 
 layer = "main"  # Current screen layer
+
+# =============================== ImgGens Stuffssss =================================
+
+# =============================== Chatbot Variables =================================
+
+chat_history = [
+    {"role": "system", "content": util.initial_context},
+    {"role": "assistant", "content": util.initial_question_to_user}
+]
 
 # =============================== Audio Recording ===================================
 
@@ -16,7 +25,7 @@ recording = False
 audio_data = []
 current_stream = None
 record_count = 0
-max_recordings = 5
+max_recordings = 6
 
 # Device and audio settings
 device_info = sd.query_devices(sd.default.device['input'])
@@ -72,7 +81,7 @@ def save_audio():
 
     # messagebox.showinfo("Recording Saved", f"Audio saved as '{filename}'.")
 
-def wrap_text(text, line_length=70):
+def wrap_text(text, line_length=60):
     words = text.split()
     lines = []
     current_line = ""
@@ -99,14 +108,28 @@ def play_audio():
     filename = f"inputs/input_{record_count}.wav"
     new_filename = f"outputs/output_{record_count}.wav"
 
-    text = tts.wav2txt(filename)
+    text = util.wav2txt(filename)
+    
+    response = text
+    chat_history.append({"role": "user", "content": response})
+
+    print(record_count)
+    text = util.create_question(chat_history, util.prompts_list[record_count])
+    chat_history.append({"role": "assistant", "content": text})
+    chat_history.append({"role": "system", "content": util.prompts_list[record_count]})
 
     if record_count == max_recordings - 1:
-        text = "Thanks for sharing your story with us today! Press back to navigate to the home page! We look forward to talking with you again soon!"
+        print(text)
+        filename = f"stories/story_{0}.wav"
+        util.txt2wav(text, filename)
+
+        # util.generate_image(text)
+
+        # text = "Thanks for sharing your story with us today! Press back to navigate to the home page! We look forward to talking with you again soon!"
 
     prompt_label.configure(text=wrap_text(text))
 
-    tts.txt2wav(text, new_filename)
+    util.txt2wav(text, new_filename)
 
     try:
         with wave.open(new_filename, "rb") as wf:
@@ -151,7 +174,7 @@ def prompt_next_recording():
 
 
 def play_story(i):
-    new_filename = f"outputs/output_{i}.wav"
+    new_filename = f"stories/story_{i}.wav"
 
     try:
         with wave.open(new_filename, "rb") as wf:
@@ -268,6 +291,7 @@ def start_new_memory():
 
     back_button.drawButton()
     record_button.drawButton()
+    prompt_label.configure(text=util.initial_question_to_user)
     prompt_label.place(relx=0.5, rely=0.45, anchor="center")
 
 def relive_past_memories():
@@ -279,23 +303,26 @@ def relive_past_memories():
         flower.place(relx=0.1 + 0.2 * i, rely=0.9, anchor="center")
 
     back_button.drawButton()
+
+    cover_label.place(relx=0.5, rely=0.35, anchor="center")
+
     play0_button.drawButton()
-    play1_button.drawButton()
-    play2_button.drawButton()
-    play3_button.drawButton()
+    # play1_button.drawButton()
+    # play2_button.drawButton()
+    # play3_button.drawButton()
 
 
 def play0():
     play_story(0)
 
-def play1():
-    play_story(1)
+# def play1():
+#     play_story(1)
 
-def play2():
-    play_story(2)
+# def play2():
+#     play_story(2)
 
-def play3():
-    play_story(3)
+# def play3():
+#     play_story(3)
 
 def go_back():
     if layer == "start_memory" or layer == "relive_memories":
@@ -312,9 +339,10 @@ def hide_all():
     prompt_label.place_forget()
     image_label.place_forget()
     play0_button.hideButton()
-    play1_button.hideButton()
-    play2_button.hideButton()
-    play3_button.hideButton()
+    cover_label.place_forget()
+    # play1_button.hideButton()
+    # play2_button.hideButton()
+    # play3_button.hideButton()
     # fill the background with the main color
     root.configure(bg="#0a1a2b")
 
@@ -332,7 +360,6 @@ title_label = tk.Label(root, text="Mem-inisce", font=("Futura", 80, "bold"), fg=
 
 # Prompt label
 prompt_label = tk.Label(root, text="", font=("Futura", 20, "bold"), fg="#ffffff", bg="#0a1a2b")
-
 
 #Load the image
 original_image = Image.open("images/Mem.png").resize((800, 400), Image.Resampling.LANCZOS)
@@ -355,10 +382,15 @@ relive_button = CustomButton(root, text="Relive the Past", command=relive_past_m
 back_button = CustomButton(root, text="Back", command=go_back, relx=0.1, rely=0.1, width=0.1, height=0.1)
 record_button = CustomButton(root, text="Start Recording", command=record_audio, relx=0.5, rely=0.7, width=0.5, height=0.15)
 
-play0_button = CustomButton(root, text="Play Memory 0", command=play0, relx=0.5, rely=0.4, width=0.5, height=0.1)
-play1_button = CustomButton(root, text="Play Memory 1", command=play1, relx=0.5, rely=0.55, width=0.5, height=0.1)
-play2_button = CustomButton(root, text="Play Memory 2", command=play2, relx=0.5, rely=0.7, width=0.5, height=0.1)
-play3_button = CustomButton(root, text="Play Memory 3", command=play3, relx=0.5, rely=0.85, width=0.5, height=0.1)
+#Load the image
+original_image = Image.open("images/story.png").resize((500, 250), Image.Resampling.LANCZOS)
+cover_photo = ImageTk.PhotoImage(original_image)
+cover_label = tk.Label(root, image=photo, bg="#0a1a2b")
+
+play0_button = CustomButton(root, text="Listen to Story!", command=play0, relx=0.5, rely=0.9, width=0.5, height=0.1)
+# play1_button = CustomButton(root, text="Play Memory 1", command=play1, relx=0.5, rely=0.55, width=0.5, height=0.1)
+# play2_button = CustomButton(root, text="Play Memory 2", command=play2, relx=0.5, rely=0.7, width=0.5, height=0.1)
+# play3_button = CustomButton(root, text="Play Memory 3", command=play3, relx=0.5, rely=0.85, width=0.5, height=0.1)
 
 
 # Function to scale UI elements dynamically
@@ -368,9 +400,9 @@ def on_resize(event):
     if back_button.winfo_ismapped():back_button.drawButton()
     if record_button.winfo_ismapped(): record_button.drawButton()
     if play0_button.winfo_ismapped(): play0_button.drawButton()
-    if play1_button.winfo_ismapped(): play1_button.drawButton()
-    if play2_button.winfo_ismapped(): play2_button.drawButton()
-    if play3_button.winfo_ismapped(): play3_button.drawButton()
+    # if play1_button.winfo_ismapped(): play1_button.drawButton()
+    # if play2_button.winfo_ismapped(): play2_button.drawButton()
+    # if play3_button.winfo_ismapped(): play3_button.drawButton()
 
 # Bind the resize event
 root.bind("<Configure>", on_resize)
